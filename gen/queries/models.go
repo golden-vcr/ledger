@@ -27,7 +27,7 @@ type LedgerFlow struct {
 	// Unique ID to serve as a handle for this ledger transaction.
 	ID uuid.UUID
 	// Type of transaction, corresponding to a valid name from the flow_type table. The corresponding flow_type.is_inflow value indicates whether this transaction is an inflow or an outflow.
-	Type sql.NullString
+	Type string
 	// Additional JSON metadata providing context about this transaction. The exact semantics of this object are flow-type-dependent; each valid flow_type should describe the required/supported metadata fields and impose constraints on this column where necessary.
 	Metadata json.RawMessage
 	// ID of the user whose balance this transaction affects.

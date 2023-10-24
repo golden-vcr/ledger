@@ -2,7 +2,7 @@ begin;
 
 create table ledger.flow (
     id             uuid primary key,
-    type           text references ledger.flow_type (name) on update cascade,
+    type           text not null references ledger.flow_type (name) on update cascade,
     metadata       jsonb not null default '{}'::jsonb,
     twitch_user_id text not null,
     delta_points   integer not null,
