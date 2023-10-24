@@ -1,0 +1,334 @@
+openapi: 3.0.3
+info:
+  version: 0.1.0
+  title: ledger
+  description: |
+    The **ledger** service keeps track of each user's balance of
+    **Golden VCR Fun Points**, and it allows transactions to be initiated using those
+    points.
+externalDocs:
+  description: 'github.com/golden-vcr/ledger'
+  url: https://github.com/golden-vcr/ledger
+servers:
+  - url: https://goldenvcr.com/api/ledger
+tags:
+  - name: inflow
+    description: |-
+      Endpoints that allow points to be credited to a user's account via various means;
+      used by internal admin tools and payment processors
+  - name: outflow
+    description: |-
+      Endpoints that allow points to be redeemed to perform various actions in the
+      platform; used internally by the APIs that implement those actions
+  - name: records
+    description: |-
+      Endpoints that provide a user with the details of their account balance and
+      transaction history; used by the webapp
+paths:
+  /inflow/manual-credit:
+    post:
+      tags:
+        - inflow
+      summary: |-
+        Grants an arbitrary number of points to any given user
+      description: |-
+        This endpoint is for admin use only - it permits the broadcaster to grant points
+        to users at the broadcaster's discretion. The request payload must specify a
+        positive integer `numPointsToCredit` value, along with either a `twitchUserId`
+        or a `twitchDisplayName` identifying the user to receive the points.
+      security:
+        - twitchUserAccessToken: []
+      operationId: postManualCredit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ManualCreditByDisplayName'
+                - $ref: '#/components/schemas/ManualCreditByUserId'
+      responses:
+        '200':
+          description: |-
+            Points were successfully credited to the desired user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResult'
+        '400':
+          description: |-
+            Request was invalid, either due to missing or malformed JSON payload in
+            request body, or because the request supplied a `twitchDisplayName` that
+            could not be resolved to a user ID.
+        '401':
+          description: |-
+            Authentication failed; caller's identity could not be ascertained.
+        '403':
+          description: |-
+            Authorization failed; caller is not the broadcaster.
+  /outflow:
+    post:
+      tags:
+        - outflow
+      summary: |-
+        Creates a pending transaction to debit points from a user
+      description: |-
+        This endpoint is used internally by the `showtime` server, as part of the
+        request that's sent when a user wants to redeem points in order to trigger any
+        kind of stream interaction feature that requires points, such as an image alert.
+
+        When handling such a request, `showtime` will start by calling this endpoint,
+        passing the user's access token as the Authorization header value. The `ledger`
+        server will identify the user from that token, then confirm that they have
+        sufficient point balance: if so, it will create a pending transaction to debit
+        the requested number of points from the user, then return a UUID that identifies
+        that outflow transaction.
+
+        The `showtime` server will then be responsible for finalizing the transaction:
+        if the alert is successfully generated, the pending outflow should be accepted
+        via `PATCH /outflow/:id`. If we're unable to generate the alert, we should
+        instead reject the transaction via `DELETE /outflow/:id`.
+      security:
+        - twitchUserAccessToken: []
+      operationId: postOutflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/OutflowAlertRedemption'
+      responses:
+        '200':
+          description: |-
+            Points were successfully debited from the desired user in a pending
+            transaction; use the provided ID to finalize the transaction when done.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResult'
+        '400':
+          description: |-
+            Request was invalid, either due to missing or malformed JSON payload in
+            request body, or because the request supplied a `twitchDisplayName` that
+            could not be resolved to a user ID.
+        '401':
+          description: |-
+            Authentication failed; target user's identity could not be ascertained.
+  /outflow/{id}:
+    patch:
+      tags:
+        - outflow
+      summary: |-
+        Finalizes a pending transaction as accepted
+      description: |-
+        Given the UUID identifying a pending transaction, and a user access token (in
+        the Authorization header) that identifies the user associated with that
+        transaction, marks the transaction as accepted.
+
+        For a pending outflow, accepting the transaction means that the deduction to the
+        user's available balance will take full and permanent effect, reducing their
+        total point balance as well.
+      security:
+        - twitchUserAccessToken: []
+      operationId: patchOutflowById
+      responses:
+        '204':
+          description: |-
+            The pending transaction was successfully finalized.
+        '401':
+          description: |-
+            Authentication failed; target user's identity could not be ascertained.
+        '404':
+          description: |-
+            There is no transaction with the given ID, or if there is, it does not
+            belong to the target user.
+        '409':
+          description: |-
+            The transaction exists and belongs to the target user, but it could not be
+            finalized because it is already finalized.
+    delete:
+      tags:
+        - outflow
+      summary: |-
+        Finalizes a pending transaction as rejected
+      description: |-
+        Given the UUID identifying a pending transaction, and a user access token (in
+        the Authorization header) that identifies the user associated with that
+        transaction, marks the transaction as rejected.
+
+        For a pending outflow, rejecting the transaction means that the deduction to the
+        user's available balance will be fully and permanently reverted, making the
+        points debited in the pending transaction available to spend once again.
+      security:
+        - twitchUserAccessToken: []
+      operationId: deleteOutflowById
+      responses:
+        '204':
+          description: |-
+            The pending transaction was successfully finalized.
+        '401':
+          description: |-
+            Authentication failed; target user's identity could not be ascertained.
+        '404':
+          description: |-
+            There is no transaction with the given ID, or if there is, it does not
+            belong to the target user.
+        '409':
+          description: |-
+            The transaction exists and belongs to the target user, but it could not be
+            finalized because it is already finalized.
+  /balance:
+    get:
+      tags:
+        - records
+      summary: |-
+        Reports the authenticated user's current balance of points
+      security:
+        - twitchUserAccessToken: []
+      operationId: getBalance
+      responses:
+        '200':
+          description: |-
+            Balances were successfully retrieved: available balance is the amount the
+            client should use to preemptively validate how many points can be debited
+            from this user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+        '401':
+          description: |-
+            Authentication failed; caller's identity could not be ascertained.
+  /history:
+    get:
+      tags:
+        - records
+      summary: |-
+        Returns historical transaction data for the authenticated user
+      security:
+        - twitchUserAccessToken: []
+      operationId: getHistory
+      responses:
+        '200':
+          description: |-
+            Transaction data was successfully retrieved, and is displayed in descending
+            order starting from the most recent transaction.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistory'
+        '401':
+          description: |-
+            Authentication failed; caller's identity could not be ascertained.
+components:
+  schemas:
+    ManualCreditByDisplayName:
+      required:
+        - twitchDisplayName
+        - numPointsToCredit
+      type: object
+      properties:
+        twitchDisplayName:
+          type: string
+          example: wasabimilkshake
+        numPointsToCredit:
+          type: integer
+          example: 1500
+    ManualCreditByUserId:
+      required:
+        - twitchUserId
+        - numPointsToCredit
+      type: object
+      properties:
+        twitchUserId:
+          type: string
+          example: '90790024'
+        numPointsToCredit:
+          type: integer
+          example: 1500
+    OutflowAlertRedemption:
+      required:
+        - type
+        - numPointsToDebit
+        - alertType
+        - alertMetadata
+      type: object
+      properties:
+        type:
+          type: string
+          example: alert-redemption
+        numPointsToDebit:
+          type: integer
+          example: 500
+        alertType:
+          type: string
+          example: image-generation
+        alertMetadata:
+          type: object
+          example:
+            imageRequestId: 245eb0d0-81ed-446e-832d-93c79ba37bf0
+    TransactionResult:
+      required:
+        - flowId
+      type: object
+      properties:
+        flowId:
+          type: string
+          format: uuid
+          example: ea4165ac-217b-4bdf-9ee6-528a229e69af
+    Balance:
+      required:
+        - totalPoints
+        - availablePoints
+      type: object
+      properties:
+        totalPoints:
+          type: integer
+          example: 1500
+        availablePoints:
+          type: integer
+          example: 1000
+    TransactionHistory:
+      required:
+        - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+    Transaction:
+      required:
+        - id
+        - timestamp
+        - type
+        - isPending
+        - deltaPoints
+        - description
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 8cce0cb4-02de-4f38-b5df-a8656c6135cd
+        timestamp:
+          type: string
+          format: date-time
+          example: '2023-10-24T15:56:02.232Z'
+        type:
+          type: string
+          example: alert-redemption
+        isPending:
+          type: boolean
+          example: false
+        deltaPoints:
+          type: integer
+          example: -500
+        description:
+          type: string
+          example: Redeemed alert of type 'generated-images'        
+  securitySchemes:
+    twitchUserAccessToken:
+      type: http
+      scheme: bearer
