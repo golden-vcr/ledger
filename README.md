@@ -6,6 +6,8 @@ the Golden VCR platform, such as triggering user-customized alerts during stream
 
 GoldenVCR Fun Points have no monetary value and are non-transferable.
 
+- **OpenAPI specification:** https://golden-vcr.github.io/ledger/
+
 ## Prerequisites
 
 Install [Go 1.21](https://go.dev/doc/install). If successful, you should be able to run:
