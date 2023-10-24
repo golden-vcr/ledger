@@ -132,6 +132,13 @@ paths:
       security:
         - twitchUserAccessToken: []
       operationId: patchOutflowById
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID of the outflow transaction to finalize
       responses:
         '204':
           description: |-
@@ -163,6 +170,13 @@ paths:
       security:
         - twitchUserAccessToken: []
       operationId: deleteOutflowById
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID of the outflow transaction to finalize
       responses:
         '204':
           description: |-
