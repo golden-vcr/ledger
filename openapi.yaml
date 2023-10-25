@@ -223,6 +223,22 @@ paths:
       security:
         - twitchUserAccessToken: []
       operationId: getHistory
+      parameters:
+        - in: query
+          name: max
+          schema:
+            type: integer
+            example: 50
+          description: Maximum number of transactions to return
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: uuid
+            example: d61915c7-a96f-4180-afdb-0577b37eeab9
+          description: |-
+            Transaction ID to start from; set from nextCursor value to fetch subsequent
+            pages after getting the first
       responses:
         '200':
           description: |-
@@ -312,12 +328,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
+        nextCursor:
+          type: string
+          example: 466dcc1c-7d01-43dd-b311-278861db65d9
     Transaction:
       required:
         - id
         - timestamp
         - type
-        - isPending
+        - state
         - deltaPoints
         - description
       type: object
@@ -334,8 +353,8 @@ components:
           type: string
           example: alert-redemption
         isPending:
-          type: boolean
-          example: false
+          type: string
+          example: accepted
         deltaPoints:
           type: integer
           example: -500
