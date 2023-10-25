@@ -11,14 +11,20 @@ import (
 
 const getBalance = `-- name: GetBalance :one
 select
-    twitch_user_id, total_points, available_points
+    balance.total_points::integer as total_points,
+    balance.available_points::integer as available_points
 from ledger.balance
 where twitch_user_id = $1
 `
 
-func (q *Queries) GetBalance(ctx context.Context, twitchUserID string) (LedgerBalance, error) {
+type GetBalanceRow struct {
+	TotalPoints     int32
+	AvailablePoints int32
+}
+
+func (q *Queries) GetBalance(ctx context.Context, twitchUserID string) (GetBalanceRow, error) {
 	row := q.db.QueryRowContext(ctx, getBalance, twitchUserID)
-	var i LedgerBalance
-	err := row.Scan(&i.TwitchUserID, &i.TotalPoints, &i.AvailablePoints)
+	var i GetBalanceRow
+	err := row.Scan(&i.TotalPoints, &i.AvailablePoints)
 	return i, err
 }
