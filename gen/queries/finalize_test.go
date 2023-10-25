@@ -28,7 +28,6 @@ func Test_FinalizeFlow(t *testing.T) {
 		},
 	}
 	for _, flow := range flows {
-
 		_, err := tx.Exec(`
 			INSERT INTO ledger.flow (
 				id,
