@@ -9,10 +9,10 @@ select
     flow.accepted
 from ledger.flow
 where flow.twitch_user_id = @twitch_user_id
-and case when sqlc.narg('next_id')::uuid is null
+and case when sqlc.narg('start_id')::uuid is null
     then true
     else flow.created_at <= (
-        select flow.created_at from ledger.flow where flow.id = sqlc.narg('next_id')::uuid
+        select flow.created_at from ledger.flow where flow.id = sqlc.narg('start_id')::uuid
     )
 end
 order by flow.created_at desc

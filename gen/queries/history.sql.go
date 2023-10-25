@@ -37,7 +37,7 @@ limit $3
 
 type GetTransactionHistoryParams struct {
 	TwitchUserID string
-	NextID       uuid.NullUUID
+	StartID      uuid.NullUUID
 	NumRecords   int32
 }
 
@@ -52,7 +52,7 @@ type GetTransactionHistoryRow struct {
 }
 
 func (q *Queries) GetTransactionHistory(ctx context.Context, arg GetTransactionHistoryParams) ([]GetTransactionHistoryRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTransactionHistory, arg.TwitchUserID, arg.NextID, arg.NumRecords)
+	rows, err := q.db.QueryContext(ctx, getTransactionHistory, arg.TwitchUserID, arg.StartID, arg.NumRecords)
 	if err != nil {
 		return nil, err
 	}

@@ -53,7 +53,7 @@ func Test_GetTransactionHistory(t *testing.T) {
 
 	rows, err = q.GetTransactionHistory(context.Background(), queries.GetTransactionHistoryParams{
 		TwitchUserID: "12345",
-		NextID:       uuid.NullUUID{Valid: true, UUID: ids[len(ids)-1]},
+		StartID:      uuid.NullUUID{Valid: true, UUID: ids[len(ids)-1]},
 		NumRecords:   5,
 	})
 	assert.NoError(t, err)
