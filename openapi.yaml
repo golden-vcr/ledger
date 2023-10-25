@@ -257,6 +257,7 @@ components:
       required:
         - twitchDisplayName
         - numPointsToCredit
+        - note
       type: object
       properties:
         twitchDisplayName:
@@ -265,10 +266,14 @@ components:
         numPointsToCredit:
           type: integer
           example: 1500
+        note:
+          type: string
+          example: For good behavior
     ManualCreditByUserId:
       required:
         - twitchUserId
         - numPointsToCredit
+        - note
       type: object
       properties:
         twitchUserId:
@@ -277,6 +282,9 @@ components:
         numPointsToCredit:
           type: integer
           example: 1500
+        note:
+          type: string
+          example: For good behavior
     OutflowAlertRedemption:
       required:
         - type

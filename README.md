@@ -24,7 +24,8 @@ variables required in [`main.go`](./cmd/server/main.go). If you have the
 [`terraform`](https://github.com/golden-vcr/terraform) repo cloned alongside this one,
 simply open a shell there and run:
 
-- `./local-db.sh env > ../ledger/.env`
+- `terraform output -raw twitch_api_env > ../ledger/.env`
+- `./local-db.sh env >> ../ledger/.env`
 
 ### Running the database
 

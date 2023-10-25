@@ -18,6 +18,7 @@ import (
 
 	"github.com/golden-vcr/auth"
 	"github.com/golden-vcr/ledger/gen/queries"
+	"github.com/golden-vcr/ledger/internal/admin"
 	"github.com/golden-vcr/ledger/internal/records"
 	"github.com/golden-vcr/server-common/db"
 )
@@ -27,6 +28,9 @@ type Config struct {
 	ListenPort uint16 `env:"LISTEN_PORT" default:"5003"`
 
 	AuthURL string `env:"AUTH_URL" default:"http://localhost:5002"`
+
+	TwitchClientId     string `env:"TWITCH_CLIENT_ID" required:"true"`
+	TwitchClientSecret string `env:"TWITCH_CLIENT_SECRET" required:"true"`
 
 	DatabaseHost     string `env:"PGHOST" required:"true"`
 	DatabasePort     int    `env:"PGPORT" required:"true"`
@@ -79,11 +83,18 @@ func main() {
 	// Start setting up our HTTP handlers, using gorilla/mux for routing
 	r := mux.NewRouter()
 
-	// The webapp make requests to GET /balance or GET /history, authenticated with the
+	// The webapp makes requests to GET /balance or GET /history, authenticated with the
 	// logged-in user's auth token, in order to get records for that user
 	{
 		recordsServer := records.NewServer(q)
 		recordsServer.RegisterRoutes(authClient, r)
+	}
+
+	// Admin-only sections of the webapp can make requests to POST /inflow/manual-credit
+	// in order to award discretionary points to any user
+	{
+		adminServer := admin.NewServer(q, config.TwitchClientId, config.TwitchClientSecret)
+		adminServer.RegisterRoutes(authClient, r)
 	}
 
 	// Handle incoming HTTP connections until our top-level context is canceled, at
