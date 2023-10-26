@@ -38,8 +38,8 @@ func Test_GetBalance(t *testing.T) {
 	// Pending inflow counts toward total but is not yet available to spend
 	balance, err := q.GetBalance(context.Background(), "31337")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1200), balance.TotalPoints)
-	assert.Equal(t, int64(0), balance.AvailablePoints)
+	assert.Equal(t, int32(1200), balance.TotalPoints)
+	assert.Equal(t, int32(0), balance.AvailablePoints)
 
 	// Finalize the inflow as accepted to make it available
 	_, err = tx.Exec(`
@@ -49,8 +49,8 @@ func Test_GetBalance(t *testing.T) {
 	assert.NoError(t, err)
 	balance, err = q.GetBalance(context.Background(), "31337")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1200), balance.TotalPoints)
-	assert.Equal(t, int64(1200), balance.AvailablePoints)
+	assert.Equal(t, int32(1200), balance.TotalPoints)
+	assert.Equal(t, int32(1200), balance.AvailablePoints)
 
 	// 10ce4abc-442c-48ca-87ba-d4ce0e26b6cb is a pending outflow of 250 points
 	_, err = tx.Exec(`
@@ -73,8 +73,8 @@ func Test_GetBalance(t *testing.T) {
 	// Pending outflow reduces available balance but does not yet affect total
 	balance, err = q.GetBalance(context.Background(), "31337")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1200), balance.TotalPoints)
-	assert.Equal(t, int64(950), balance.AvailablePoints)
+	assert.Equal(t, int32(1200), balance.TotalPoints)
+	assert.Equal(t, int32(950), balance.AvailablePoints)
 
 	// Finalize the outflow as accepted to make it official
 	_, err = tx.Exec(`
@@ -84,8 +84,8 @@ func Test_GetBalance(t *testing.T) {
 	assert.NoError(t, err)
 	balance, err = q.GetBalance(context.Background(), "31337")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(950), balance.TotalPoints)
-	assert.Equal(t, int64(950), balance.AvailablePoints)
+	assert.Equal(t, int32(950), balance.TotalPoints)
+	assert.Equal(t, int32(950), balance.AvailablePoints)
 
 	// Add an inflow and an outflow that are both recorded as rejected: they should not
 	// affect balances in any way once rejected
@@ -135,6 +135,6 @@ func Test_GetBalance(t *testing.T) {
 	assert.NoError(t, err)
 	balance, err = q.GetBalance(context.Background(), "31337")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(950), balance.TotalPoints)
-	assert.Equal(t, int64(950), balance.AvailablePoints)
+	assert.Equal(t, int32(950), balance.TotalPoints)
+	assert.Equal(t, int32(950), balance.AvailablePoints)
 }
