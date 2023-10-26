@@ -25,10 +25,11 @@ func NewServer(q Queries, twitchClientId string, twitchClientSecret string) *Ser
 }
 
 func (s *Server) RegisterRoutes(c auth.Client, r *mux.Router) {
-	r.Use(func(next http.Handler) http.Handler {
-		return auth.RequireAccess(c, auth.RoleBroadcaster, next)
-	})
-	r.Path("/inflow/manual-credit").Methods("POST").HandlerFunc(s.handlePostManualCredit)
+	r.Path("/inflow/manual-credit").Methods("POST").Handler(
+		auth.RequireAccess(c, auth.RoleBroadcaster,
+			http.HandlerFunc(s.handlePostManualCredit),
+		),
+	)
 }
 
 func (s *Server) handlePostManualCredit(res http.ResponseWriter, req *http.Request) {

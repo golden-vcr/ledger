@@ -23,11 +23,16 @@ func NewServer(q Queries) *Server {
 }
 
 func (s *Server) RegisterRoutes(c auth.Client, r *mux.Router) {
-	r.Use(func(next http.Handler) http.Handler {
-		return auth.RequireAccess(c, auth.RoleViewer, next)
-	})
-	r.Path("/balance").Methods("GET").HandlerFunc(s.handleGetBalance)
-	r.Path("/history").Methods("GET").HandlerFunc(s.handleGetHistory)
+	r.Path("/balance").Methods("GET").Handler(
+		auth.RequireAccess(c, auth.RoleViewer,
+			http.HandlerFunc(s.handleGetBalance),
+		),
+	)
+	r.Path("/history").Methods("GET").Handler(
+		auth.RequireAccess(c, auth.RoleViewer,
+			http.HandlerFunc(s.handleGetHistory),
+		),
+	)
 }
 
 func (s *Server) handleGetBalance(res http.ResponseWriter, req *http.Request) {
