@@ -251,6 +251,58 @@ paths:
         '401':
           description: |-
             Authentication failed; caller's identity could not be ascertained.
+  /notifications:
+    post:
+      tags:
+        - records
+      summary: |-
+        Authorizes the caller and issues a short-lived SSE token that can be supplied to
+        GET /notifications
+      security:
+        - twitchUserAccessToken: []
+      operationId: postNotifications
+      responses:
+        '200':
+          description: |-
+            User is authorized; the provided access code may be supplied as a URL
+            parameter in subsequent requests to `GET /notifications`
+          content:
+            text/plain:
+              example: f03fd43ae7ba9bdbf5db3ea93c0fb363fbaec307e6414d41cb34301fb6fd0aa0
+        '401':
+          description: |-
+            Authentication failed; caller's identity could not be ascertained.
+    get:
+      tags:
+        - records
+      summary: |-
+        Provides real-time notifications whenever a new transaction occurs affecting the
+        auth'd uesr
+      operationId: getNotifications
+      parameters:
+        - in: query
+          name: token
+          schema:
+            type: string
+            example: f03fd43ae7ba9bdbf5db3ea93c0fb363fbaec307e6414d41cb34301fb6fd0aa0
+          description: SSE auth token issued by POST /notifications
+      responses:
+        '200':
+          description: |-
+            Success; whenenver a transaction is created or updated that affects the
+            auth'd user, its details will be written into the response body
+          content:
+            text/event-stream:
+              example:
+                id: 6522157c-4a19-4dde-8a90-813bd510e48b
+                timestamp: '2023-10-31T20:58:32.556285Z'
+                type: manual-credit
+                state: accepted
+                deltaPoints: 1500
+                description: 'Manual credit: test'
+        '401':
+          description: |-
+            SSE token provided via `token` query parameter was invalid or expired
 components:
   schemas:
     ManualCreditByDisplayName:

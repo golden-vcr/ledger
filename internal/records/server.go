@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	"github.com/golden-vcr/auth"
+	"github.com/golden-vcr/ledger"
 	"github.com/golden-vcr/ledger/gen/queries"
+	"github.com/golden-vcr/ledger/internal/util"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -44,7 +46,7 @@ func (s *Server) handleGetBalance(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Query their balance, defaulting to 0 if no record exists
-	balance := &Balance{
+	balance := &ledger.Balance{
 		TotalPoints:     0,
 		AvailablePoints: 0,
 	}
@@ -93,16 +95,17 @@ func (s *Server) handleGetHistory(res http.ResponseWriter, req *http.Request) {
 		StartID:      startId,
 	})
 	numItemsToReturn := min(limit, len(rows))
-	items := make([]Transaction, 0, numItemsToReturn)
+	items := make([]ledger.Transaction, 0, numItemsToReturn)
 	for i := 0; i < numItemsToReturn; i++ {
-		items = append(items, buildHistoryItem(&rows[i]))
+		row := &rows[i]
+		items = append(items, util.BuildTransaction(row.ID, row.Type, row.Metadata, int(row.DeltaPoints), row.CreatedAt, row.FinalizedAt, row.Accepted))
 	}
 	nextCursor := ""
 	if len(rows) > limit {
 		nextCursor = rows[limit].ID.String()
 	}
 
-	history := &TransactionHistory{
+	history := &ledger.TransactionHistory{
 		Items:      items,
 		NextCursor: nextCursor,
 	}

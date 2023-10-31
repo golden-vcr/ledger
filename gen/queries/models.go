@@ -53,3 +53,13 @@ type LedgerFlowType struct {
 	// Developer-facing description of this flow type; including its purpose and a description of any additional metadata required for transactions of this type.
 	Comment string
 }
+
+// Record of a short-lived cryptographic token used to authenticate the given user, solely for the purpose of allowing them access to real-time transaction data via the /notifications SSE endpoint.
+type LedgerSseToken struct {
+	// ID of the user whose transaction notifications should be sent to the bearer of this token.
+	TwitchUserID string
+	// String token value, typically a hex-encoded cryptographically random string.
+	Value string
+	// Time at which the token should no longer be accepted (and may be purged).
+	ExpiresAt time.Time
+}

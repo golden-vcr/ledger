@@ -3,22 +3,25 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/codingconcepts/env"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/golden-vcr/auth"
 	"github.com/golden-vcr/ledger/gen/queries"
 	"github.com/golden-vcr/ledger/internal/admin"
+	"github.com/golden-vcr/ledger/internal/notifications"
 	"github.com/golden-vcr/ledger/internal/records"
 	"github.com/golden-vcr/server-common/db"
 )
@@ -76,6 +79,43 @@ func main() {
 	}
 	q := queries.New(db)
 
+	// Initialize a database listener that will notify us whenever transactions are
+	// created or updated
+	pqListener := pq.NewListener(connectionString, 10*time.Second, time.Minute, func(ev pq.ListenerEventType, err error) {
+		switch ev {
+		case pq.ListenerEventConnected:
+			fmt.Printf("pq listener connected (err: %v)\n", err)
+		case pq.ListenerEventDisconnected:
+			fmt.Printf("pq listener disconnected (err: %v)\n", err)
+		case pq.ListenerEventReconnected:
+			fmt.Printf("pq listener reconnected (err: %v)\n", err)
+		case pq.ListenerEventConnectionAttemptFailed:
+			fmt.Printf("pq listener connection attempt failed (err: %v)\n", err)
+		}
+		if err != nil {
+			log.Fatalf("pq.Listener failed: %v", err)
+		}
+	})
+	if err := pqListener.Listen("ledger_flow_change"); err != nil {
+		log.Fatalf("failed to issue LISTEN command for pq listener: %v", err)
+	}
+	pqEvents := make(chan *notifications.FlowChangeNotification)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case notification := <-pqListener.NotificationChannel():
+				var event notifications.FlowChangeNotification
+				if err := json.Unmarshal([]byte(notification.Extra), &event); err != nil {
+					fmt.Printf("Failed to unmarshal extra data from notification: %v\n", err)
+					continue
+				}
+				pqEvents <- &event
+			}
+		}
+	}()
+
 	// Prepare an auth client that we can use to validate (and identify users from)
 	// Twitch user access tokens
 	authClient := auth.NewClient(config.AuthURL)
@@ -88,6 +128,10 @@ func main() {
 	{
 		recordsServer := records.NewServer(q)
 		recordsServer.RegisterRoutes(authClient, r)
+
+		notificationsServer := notifications.NewServer(ctx, q, pqEvents)
+		go notificationsServer.ReadPostgresNotifications(ctx)
+		notificationsServer.RegisterRoutes(authClient, r)
 	}
 
 	// Admin-only sections of the webapp can make requests to POST /inflow/manual-credit
