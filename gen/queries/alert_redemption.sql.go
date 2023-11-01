@@ -28,7 +28,7 @@ insert into ledger.flow (
         else $1::jsonb
     end) || jsonb_build_object('type', $2::text),
     $3,
-    -1 * $4,
+    -1 * $4::integer,
     now()
 )
 returning flow.id
@@ -38,7 +38,7 @@ type RecordPendingAlertRedemptionOutflowParams struct {
 	AlertMetadata    pqtype.NullRawMessage
 	AlertType        string
 	TwitchUserID     string
-	NumPointsToDebit interface{}
+	NumPointsToDebit int32
 }
 
 func (q *Queries) RecordPendingAlertRedemptionOutflow(ctx context.Context, arg RecordPendingAlertRedemptionOutflowParams) (uuid.UUID, error) {

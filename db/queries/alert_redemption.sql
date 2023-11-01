@@ -14,7 +14,7 @@ insert into ledger.flow (
         else sqlc.narg('alert_metadata')::jsonb
     end) || jsonb_build_object('type', @alert_type::text),
     @twitch_user_id,
-    -1 * @num_points_to_debit,
+    -1 * @num_points_to_debit::integer,
     now()
 )
 returning flow.id;
