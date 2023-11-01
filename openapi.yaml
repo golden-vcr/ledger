@@ -115,6 +115,10 @@ paths:
         '401':
           description: |-
             Authentication failed; target user's identity could not be ascertained.
+        '409':
+          description: |-
+            User was authenticated but does not have enough points to satisfy the
+            request while still maintaining a non-negative balance.
   /outflow/{id}:
     patch:
       tags:

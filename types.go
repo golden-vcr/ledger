@@ -1,6 +1,7 @@
 package ledger
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,4 +39,15 @@ type Transaction struct {
 	State       TransactionState `json:"state"`
 	DeltaPoints int              `json:"deltaPoints"`
 	Description string           `json:"description"`
+}
+
+type AlertRedemptionRequest struct {
+	Type             TransactionType  `json:"type"`
+	NumPointsToDebit int              `json:"numPointsToDebit"`
+	AlertType        string           `json:"alertType"`
+	AlertMetadata    *json.RawMessage `json:"alertMetadata,omitempty"`
+}
+
+type TransactionResult struct {
+	FlowId uuid.UUID `json:"flowId"`
 }
