@@ -22,6 +22,7 @@ import (
 	"github.com/golden-vcr/ledger/gen/queries"
 	"github.com/golden-vcr/ledger/internal/admin"
 	"github.com/golden-vcr/ledger/internal/notifications"
+	"github.com/golden-vcr/ledger/internal/outflow"
 	"github.com/golden-vcr/ledger/internal/records"
 	"github.com/golden-vcr/server-common/db"
 )
@@ -139,6 +140,14 @@ func main() {
 	{
 		adminServer := admin.NewServer(q, config.TwitchClientId, config.TwitchClientSecret)
 		adminServer.RegisterRoutes(authClient, r)
+	}
+
+	// Internal APIs can use POST /outflow to create pending transactions that deduct
+	// points in order to take advantage of app features, and PATCH|DELETE /outflow/:id
+	// to finalize those transactions
+	{
+		outflowServer := outflow.NewServer(q)
+		outflowServer.RegisterRoutes(authClient, r)
 	}
 
 	// Handle incoming HTTP connections until our top-level context is canceled, at

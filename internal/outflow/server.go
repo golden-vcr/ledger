@@ -20,7 +20,7 @@ type Server struct {
 	q Queries
 }
 
-func NewServer(q Queries, twitchClientId string, twitchClientSecret string) *Server {
+func NewServer(q Queries) *Server {
 	return &Server{
 		q: q,
 	}
