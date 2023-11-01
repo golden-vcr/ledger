@@ -23,6 +23,14 @@ type Client interface {
 	RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error)
 }
 
+// NewClient initializes an HTTP client configured to make requests against the
+// golden-vcr/ledger server running at the given URL
+func NewClient(ledgerUrl string) Client {
+	return &client{
+		ledgerUrl: ledgerUrl,
+	}
+}
+
 type client struct {
 	http.Client
 	ledgerUrl string
