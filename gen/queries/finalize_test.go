@@ -2,6 +2,7 @@ package queries_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/golden-vcr/ledger/gen/queries"
@@ -9,6 +10,47 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_GetFlow(t *testing.T) {
+	tx := querytest.PrepareTx(t)
+	q := queries.New(tx)
+
+	row, err := q.GetFlow(context.Background(), uuid.MustParse("ca7c92e1-cc99-4e2a-b1d2-5109f1a6a9aa"))
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	_, err = tx.Exec(`
+			INSERT INTO ledger.flow (
+				id,
+				type,
+				metadata,
+				twitch_user_id,
+				delta_points
+			) VALUES (
+				'ca7c92e1-cc99-4e2a-b1d2-5109f1a6a9aa',
+				'manual-credit',
+				'{"note":"unit test"}'::jsonb,
+				'54321',
+				100
+			)
+		`)
+	assert.NoError(t, err)
+
+	row, err = q.GetFlow(context.Background(), uuid.MustParse("ca7c92e1-cc99-4e2a-b1d2-5109f1a6a9aa"))
+	assert.NoError(t, err)
+	assert.Equal(t, queries.GetFlowRow{
+		TwitchUserID: "54321",
+		FinalizedAt:  sql.NullTime{},
+		Accepted:     false,
+	}, row)
+
+	_, err = tx.Exec("UPDATE ledger.flow SET finalized_at = now(), accepted = true WHERE flow.id = 'ca7c92e1-cc99-4e2a-b1d2-5109f1a6a9aa'")
+	assert.NoError(t, err)
+
+	row, err = q.GetFlow(context.Background(), uuid.MustParse("ca7c92e1-cc99-4e2a-b1d2-5109f1a6a9aa"))
+	assert.NoError(t, err)
+	assert.True(t, row.FinalizedAt.Valid)
+	assert.True(t, row.Accepted)
+}
 
 func Test_FinalizeFlow(t *testing.T) {
 	tx := querytest.PrepareTx(t)

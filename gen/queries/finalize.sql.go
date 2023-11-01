@@ -29,3 +29,25 @@ type FinalizeFlowParams struct {
 func (q *Queries) FinalizeFlow(ctx context.Context, arg FinalizeFlowParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, finalizeFlow, arg.Accepted, arg.FlowID)
 }
+
+const getFlow = `-- name: GetFlow :one
+select
+    twitch_user_id,
+    finalized_at,
+    accepted
+from ledger.flow
+where flow.id = $1
+`
+
+type GetFlowRow struct {
+	TwitchUserID string
+	FinalizedAt  sql.NullTime
+	Accepted     bool
+}
+
+func (q *Queries) GetFlow(ctx context.Context, flowID uuid.UUID) (GetFlowRow, error) {
+	row := q.db.QueryRowContext(ctx, getFlow, flowID)
+	var i GetFlowRow
+	err := row.Scan(&i.TwitchUserID, &i.FinalizedAt, &i.Accepted)
+	return i, err
+}
