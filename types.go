@@ -11,6 +11,7 @@ type TransactionType string
 
 const (
 	TransactionTypeManualCredit    TransactionType = "manual-credit"
+	TransactionTypeCheer           TransactionType = "cheer"
 	TransactionTypeAlertRedemption TransactionType = "alert-redemption"
 )
 
@@ -39,6 +40,12 @@ type Transaction struct {
 	State       TransactionState `json:"state"`
 	DeltaPoints int              `json:"deltaPoints"`
 	Description string           `json:"description"`
+}
+
+type CheerRequest struct {
+	TwitchUserId      string `json:"twitchUserId,omitempty"`
+	NumPointsToCredit int    `json:"numPointsToCredit"`
+	Message           string `json:"message"`
 }
 
 type AlertRedemptionRequest struct {

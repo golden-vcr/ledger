@@ -25,6 +25,7 @@ variables required in [`main.go`](./cmd/server/main.go). If you have the
 simply open a shell there and run:
 
 - `terraform output -raw twitch_api_env > ../ledger/.env`
+- `terraform output -raw ledger_s2s_auth_env >> ../ledger/.env`
 - `./local-db.sh env >> ../ledger/.env`
 
 ### Running the database

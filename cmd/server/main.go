@@ -21,6 +21,7 @@ import (
 	"github.com/golden-vcr/auth"
 	"github.com/golden-vcr/ledger/gen/queries"
 	"github.com/golden-vcr/ledger/internal/admin"
+	"github.com/golden-vcr/ledger/internal/cheer"
 	"github.com/golden-vcr/ledger/internal/notifications"
 	"github.com/golden-vcr/ledger/internal/outflow"
 	"github.com/golden-vcr/ledger/internal/records"
@@ -42,6 +43,8 @@ type Config struct {
 	DatabaseUser     string `env:"PGUSER" required:"true"`
 	DatabasePassword string `env:"PGPASSWORD" required:"true"`
 	DatabaseSslMode  string `env:"PGSSLMODE"`
+
+	LedgerShowtimeSecretKey string `env:"LEDGER_SHOWTIME_SECRET_KEY"`
 }
 
 func main() {
@@ -140,6 +143,16 @@ func main() {
 	{
 		adminServer := admin.NewServer(q, config.TwitchClientId, config.TwitchClientSecret)
 		adminServer.RegisterRoutes(authClient, r)
+	}
+
+	// The showtime service can use POST /inflow/cheer to award bits in response to the
+	// Twitch channel.cheer webhook, which is called to signify the receipt of bits via
+	// Twitch. This route is authorized via a secret key that's known only to ledger and
+	// showtime, restricting access to internal use only and allowing us to identify the
+	// target user by ID, without supplying their user access token.
+	{
+		cheerServer := cheer.NewServer(q, config.LedgerShowtimeSecretKey)
+		cheerServer.RegisterRoutes(r)
 	}
 
 	// Internal APIs can use POST /outflow to create pending transactions that deduct

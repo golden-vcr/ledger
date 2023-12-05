@@ -66,6 +66,42 @@ paths:
         '403':
           description: |-
             Authorization failed; caller is not the broadcaster.
+  /inflow/cheer:
+    post:
+      tags:
+        - inflow
+      summary: |-
+        Grants points to a user in response to a cheer on Twitch
+      description: |-
+        This endpoint is used internally by the Twitch EventSub callback handler, in
+        response to a `channel.cheer` event - it uses an internal service-to-service
+        auth mechanism to authorize the request, allowing the showtime service to grant
+        an arbitrary number of points to an arbitrary user.
+      security:
+        - ledgerSecretKey: []
+      operationId: postCheer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/CheerRequest'
+      responses:
+        '200':
+          description: |-
+            Points were successfully credited to the desired user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResult'
+        '400':
+          description: |-
+            Request was invalid due to missing or malformed JSON payload in request
+            body.
+        '401':
+          description: |-
+            Authentication failed; request was not authorized using the secret key.
   /outflow:
     post:
       tags:
@@ -341,6 +377,22 @@ components:
         note:
           type: string
           example: For good behavior
+    CheerRequest:
+      required:
+        - twitchUserId
+        - numPointsToCredit
+        - message
+      type: object
+      properties:
+        twitchUserId:
+          type: string
+          example: '90790024'
+        numPointsToCredit:
+          type: integer
+          example: 200
+        note:
+          type: string
+          example: ghost of a seal
     OutflowAlertRedemption:
       required:
         - type
@@ -427,5 +479,8 @@ components:
           example: Redeemed alert of type 'generated-images'        
   securitySchemes:
     twitchUserAccessToken:
+      type: http
+      scheme: bearer
+    ledgerSecretKey:
       type: http
       scheme: bearer

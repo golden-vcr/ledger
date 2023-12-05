@@ -20,20 +20,68 @@ type TransactionContext interface {
 }
 
 type Client interface {
+	RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error)
 	RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error)
 }
 
 // NewClient initializes an HTTP client configured to make requests against the
 // golden-vcr/ledger server running at the given URL
-func NewClient(ledgerUrl string) Client {
+func NewClient(ledgerUrl string, ledgerSecretKey string) Client {
 	return &client{
-		ledgerUrl: ledgerUrl,
+		ledgerUrl:       ledgerUrl,
+		ledgerSecretKey: ledgerSecretKey,
 	}
 }
 
 type client struct {
 	http.Client
-	ledgerUrl string
+	ledgerUrl       string
+	ledgerSecretKey string
+}
+
+func (c *client) RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
+	// Build a request payload for POST /inflow/cheer
+	payload := CheerRequest{
+		TwitchUserId:      twitchUserId,
+		NumPointsToCredit: numPointsToCredit,
+		Message:           message,
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	// Prepare a request to POST /inflow/cheer that creates and finalizes an inflow that
+	// credits the requested number of points to the requested user, authorized with the
+	// service-to-service secret key that's shared between showtime and ledger
+	url := c.ledgerUrl + "/inflow/cheer"
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	req.Header.Set("authorization", c.ledgerSecretKey)
+
+	// Initiate the request and make sure it completes successfully
+	res, err := c.Do(req)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	// For any unexpected or non-OK response, propagate an error and halt
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		return uuid.UUID{}, fmt.Errorf("got response %d from POST %s", res.StatusCode, url)
+	}
+
+	// We have an OK response; parse the response body to get our transaction ID
+	contentType := res.Header.Get("content/type")
+	if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
+		return uuid.UUID{}, fmt.Errorf("got unexpected content-type '%s' from POST %s", contentType, url)
+	}
+	var result TransactionResult
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return uuid.UUID{}, fmt.Errorf("error decoding response body: %w", err)
+	}
+	return result.FlowId, nil
 }
 
 func (c *client) RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error) {
@@ -73,13 +121,13 @@ func (c *client) RequestAlertRedemption(ctx context.Context, accessToken string,
 
 	// For any unexpected or non-OK response, propagate an error and halt
 	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("got response %d from GET %s", res.StatusCode, url)
+		return nil, fmt.Errorf("got response %d from POST %s", res.StatusCode, url)
 	}
 
 	// We have an OK response; parse the response body to get our transaction ID
 	contentType := res.Header.Get("content/type")
 	if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
-		return nil, fmt.Errorf("got unexpected content-type '%s' from GET %s", contentType, url)
+		return nil, fmt.Errorf("got unexpected content-type '%s' from POST %s", contentType, url)
 	}
 	var result TransactionResult
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
