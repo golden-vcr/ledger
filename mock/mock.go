@@ -39,6 +39,10 @@ func (c *Client) Grant(accessToken string, initialBalance int) *Client {
 	return c
 }
 
+func (c *Client) RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
+	return uuid.UUID{}, fmt.Errorf("not mocked")
+}
+
 func (c *Client) RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (ledger.TransactionContext, error) {
 	balance, err := c.getAvailableBalance(accessToken)
 	if err != nil {
@@ -84,3 +88,5 @@ func (m *mockDebit) Finalize(ctx context.Context) error {
 	}
 	return nil
 }
+
+var _ ledger.Client = (*Client)(nil)
