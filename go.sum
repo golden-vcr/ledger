@@ -16,6 +16,8 @@ github.com/golden-vcr/auth v0.0.0-20231016171253-54e363f981f1 h1:VVwydKmDQuOXiIi
 github.com/golden-vcr/auth v0.0.0-20231016171253-54e363f981f1/go.mod h1:ah8wcbxs+iE9qz9Pv90Tvm00A2LGwuJBpawMShQFDJk=
 github.com/golden-vcr/auth v0.2.2 h1:bhoMnNW3o8+9wh6AqN4Nrd+vamDV9qotn4CKRjwVXj4=
 github.com/golden-vcr/auth v0.2.2/go.mod h1:54G8vTTmqASia3sWvUIlwWj5LYaVcPaXZQE0TLtLLa4=
+github.com/golden-vcr/auth v0.2.3 h1:oWj6OAD4MuN4AaenHDuCmVuAi4cdicLRQEb9U/M5iF0=
+github.com/golden-vcr/auth v0.2.3/go.mod h1:54G8vTTmqASia3sWvUIlwWj5LYaVcPaXZQE0TLtLLa4=
 github.com/golden-vcr/server-common v0.3.0 h1:BZfr+VezE8X3e+Uh/up7hVv766j98CAcMfaIlewoEIU=
 github.com/golden-vcr/server-common v0.3.0/go.mod h1:BnDmeVjFiwkWHJIshKNRU3P16nDIXl53aSMdQTP5vzs=
 github.com/golden-vcr/server-common v0.4.0 h1:euQPGKeHG9RvqxJrZlSn9s/oE7MAcURZ9HrWIicQloo=

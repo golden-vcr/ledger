@@ -90,7 +90,7 @@ func Test_Server_handleCreateOutflow(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authClient := authmock.NewClient().Allow("mock-token", auth.RoleViewer, auth.UserDetails{
+			authClient := authmock.NewClient().AllowTwitchUserAccessToken("mock-token", auth.RoleViewer, auth.UserDetails{
 				Id:          "1001",
 				Login:       "testuser",
 				DisplayName: "TestUser",
@@ -269,7 +269,7 @@ func Test_Server_handleFinalizeOutflow(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authClient := authmock.NewClient().Allow("mock-token", auth.RoleViewer, auth.UserDetails{
+			authClient := authmock.NewClient().AllowTwitchUserAccessToken("mock-token", auth.RoleViewer, auth.UserDetails{
 				Id:          "1001",
 				Login:       "testuser",
 				DisplayName: "TestUser",

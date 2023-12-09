@@ -4,7 +4,7 @@ go 1.21.3
 
 require (
 	github.com/codingconcepts/env v0.0.0-20200821220118-a8fbf8d84482
-	github.com/golden-vcr/auth v0.2.2
+	github.com/golden-vcr/auth v0.2.3
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.5.1
