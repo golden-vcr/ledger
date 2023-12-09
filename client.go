@@ -21,7 +21,7 @@ type TransactionContext interface {
 }
 
 type Client interface {
-	RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error)
+	RequestCreditFromCheer(ctx context.Context, accessToken string, numPointsToCredit int, message string) (uuid.UUID, error)
 	RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error)
 }
 
@@ -38,7 +38,7 @@ type client struct {
 	ledgerUrl string
 }
 
-func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
+func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string, numPointsToCredit int, message string) (uuid.UUID, error) {
 	// Build a request payload for POST /inflow/cheer
 	payload := CheerRequest{
 		NumPointsToCredit: numPointsToCredit,
