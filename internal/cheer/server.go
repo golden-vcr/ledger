@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golden-vcr/auth"
 	"github.com/golden-vcr/ledger"
 	"github.com/golden-vcr/ledger/gen/queries"
 	"github.com/gorilla/mux"
@@ -26,8 +27,12 @@ func NewServer(q Queries, secretKey string) *Server {
 	}
 }
 
-func (s *Server) RegisterRoutes(r *mux.Router) {
-	r.Path("/inflow/cheer").Methods("POST").HandlerFunc(s.handlePostCheer)
+func (s *Server) RegisterRoutes(r *mux.Router, c auth.Client) {
+	r.Path("/inflow/cheer").Methods("POST").Handler(
+		// Only internal services may call this endpoint, by supplying the JWT they've
+		// been issued by the auth service (with the 'authoritative' claim)
+		auth.RequireAuthority(c, http.HandlerFunc(s.handlePostCheer)),
+	)
 }
 
 func (s *Server) handlePostCheer(res http.ResponseWriter, req *http.Request) {

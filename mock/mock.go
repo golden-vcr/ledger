@@ -39,7 +39,7 @@ func (c *Client) Grant(accessToken string, initialBalance int) *Client {
 	return c
 }
 
-func (c *Client) RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
+func (c *Client) RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
 	return uuid.UUID{}, fmt.Errorf("not mocked")
 }
 

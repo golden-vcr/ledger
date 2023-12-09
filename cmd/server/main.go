@@ -122,7 +122,10 @@ func main() {
 
 	// Prepare an auth client that we can use to validate (and identify users from)
 	// Twitch user access tokens
-	authClient := auth.NewClient(config.AuthURL)
+	authClient, err := auth.NewClient(ctx, config.AuthURL)
+	if err != nil {
+		log.Fatalf("error initializing auth client: %v", err)
+	}
 
 	// Start setting up our HTTP handlers, using gorilla/mux for routing
 	r := mux.NewRouter()
@@ -152,7 +155,7 @@ func main() {
 	// target user by ID, without supplying their user access token.
 	{
 		cheerServer := cheer.NewServer(q, config.LedgerShowtimeSecretKey)
-		cheerServer.RegisterRoutes(r)
+		cheerServer.RegisterRoutes(r, authClient)
 	}
 
 	// Internal APIs can use POST /outflow to create pending transactions that deduct

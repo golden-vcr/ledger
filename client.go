@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -20,26 +21,24 @@ type TransactionContext interface {
 }
 
 type Client interface {
-	RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error)
+	RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error)
 	RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error)
 }
 
 // NewClient initializes an HTTP client configured to make requests against the
 // golden-vcr/ledger server running at the given URL
-func NewClient(ledgerUrl string, ledgerSecretKey string) Client {
+func NewClient(ledgerUrl string) Client {
 	return &client{
-		ledgerUrl:       ledgerUrl,
-		ledgerSecretKey: ledgerSecretKey,
+		ledgerUrl: ledgerUrl,
 	}
 }
 
 type client struct {
 	http.Client
-	ledgerUrl       string
-	ledgerSecretKey string
+	ledgerUrl string
 }
 
-func (c *client) RequestCreditFromCheer(ctx context.Context, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
+func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
 	// Build a request payload for POST /inflow/cheer
 	payload := CheerRequest{
 		TwitchUserId:      twitchUserId,
@@ -53,13 +52,13 @@ func (c *client) RequestCreditFromCheer(ctx context.Context, twitchUserId string
 
 	// Prepare a request to POST /inflow/cheer that creates and finalizes an inflow that
 	// credits the requested number of points to the requested user, authorized with the
-	// service-to-service secret key that's shared between showtime and ledger
+	// provided JWT
 	url := c.ledgerUrl + "/inflow/cheer"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	req.Header.Set("authorization", c.ledgerSecretKey)
+	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	// Initiate the request and make sure it completes successfully
 	res, err := c.Do(req)
@@ -69,7 +68,11 @@ func (c *client) RequestCreditFromCheer(ctx context.Context, twitchUserId string
 
 	// For any unexpected or non-OK response, propagate an error and halt
 	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
-		return uuid.UUID{}, fmt.Errorf("got response %d from POST %s", res.StatusCode, url)
+		suffix := ""
+		if body, err := io.ReadAll(res.Body); err == nil {
+			suffix = fmt.Sprintf(": %s", body)
+		}
+		return uuid.UUID{}, fmt.Errorf("got response %d from POST %s%s", res.StatusCode, url, suffix)
 	}
 
 	// We have an OK response; parse the response body to get our transaction ID
