@@ -78,7 +78,7 @@ paths:
         auth mechanism to authorize the request, allowing the showtime service to grant
         an arbitrary number of points to an arbitrary user.
       security:
-        - ledgerSecretKey: []
+        - twitchUserAccessToken: []
       operationId: postCheer
       requestBody:
         required: true
@@ -101,7 +101,8 @@ paths:
             body.
         '401':
           description: |-
-            Authentication failed; request was not authorized using the secret key.
+            Authentication failed; request did not contain a valid, authoritative JWT
+            issued by the auth server.
   /outflow:
     post:
       tags:
@@ -479,8 +480,5 @@ components:
           example: Redeemed alert of type 'generated-images'        
   securitySchemes:
     twitchUserAccessToken:
-      type: http
-      scheme: bearer
-    ledgerSecretKey:
       type: http
       scheme: bearer

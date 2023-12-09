@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golden-vcr/auth"
+	authmock "github.com/golden-vcr/auth/mock"
 	"github.com/golden-vcr/ledger/gen/queries"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -26,82 +28,83 @@ func Test_Server_handlePostCheer(t *testing.T) {
 		{
 			"normal usage",
 			&mockQueries{},
-			"secret",
-			`{"twitchUserId":"1337","numPointsToCredit":400,"message":"hello"}`,
+			"internal-jwt",
+			`{"numPointsToCredit":400,"message":"hello"}`,
 			http.StatusOK,
 			`{"flowId":"0dc95aba-6f8f-4e13-9081-ba1b2ced8f39"}`,
 		},
 		{
 			"message is optional",
 			&mockQueries{},
-			"secret",
-			`{"twitchUserId":"1337","numPointsToCredit":400}`,
+			"internal-jwt",
+			`{"numPointsToCredit":400}`,
 			http.StatusOK,
 			`{"flowId":"0dc95aba-6f8f-4e13-9081-ba1b2ced8f39"}`,
 		},
 		{
-			"user ID must be specified",
-			&mockQueries{},
-			"secret",
-			`{"twitchUserId":"","numPointsToCredit":400,"message":"hello"}`,
-			http.StatusBadRequest,
-			"invalid request payload: 'twitchUserId' is required",
-		},
-		{
 			"points to credit must be positive",
 			&mockQueries{},
-			"secret",
-			`{"twitchUserId":"1337","numPointsToCredit":0}`,
+			"internal-jwt",
+			`{"numPointsToCredit":0}`,
 			http.StatusBadRequest,
 			"invalid request payload: 'numPointsToCredit' must be set to a positive integer",
 		},
 		{
 			"malformed JSON payload is a 400 error",
 			&mockQueries{},
-			"secret",
+			"internal-jwt",
 			`{""}`,
 			http.StatusBadRequest,
 			"invalid request payload: invalid character '}' after object key",
 		},
 		{
-			"invalid secret key is a 401 error",
+			"invalid JWT is a 401 error",
 			&mockQueries{},
-			"bad-secret",
-			`{"twitchUserId":"1337","numPointsToCredit":400,"message":"hello"}`,
+			"twitch-user-access-token",
+			`{"numPointsToCredit":400,"message":"hello"}`,
 			http.StatusUnauthorized,
 			"access denied",
 		},
 		{
-			"missing secret key is a 401 error",
+			"missing JWT is a 401 error",
 			&mockQueries{},
 			"",
-			`{"twitchUserId":"1337","numPointsToCredit":400,"message":"hello"}`,
-			http.StatusUnauthorized,
-			"access denied",
+			`{"numPointsToCredit":400,"message":"hello"}`,
+			http.StatusBadRequest,
+			"Internal JWT must be supplied in Authorization header",
 		},
 		{
 			"failure to update database is a 500 error",
 			&mockQueries{
 				err: fmt.Errorf("mock error"),
 			},
-			"secret",
-			`{"twitchUserId":"1337","numPointsToCredit":400,"message":"hello"}`,
+			"internal-jwt",
+			`{"numPointsToCredit":400,"message":"hello"}`,
 			http.StatusInternalServerError,
 			"mock error",
 		},
 	}
 	for _, tt := range tests {
+		c := authmock.NewClient().AllowAuthoritativeJWT("internal-jwt", auth.UserDetails{
+			Id:          "1337",
+			Login:       "leetman",
+			DisplayName: "LEETman",
+		}).AllowTwitchUserAccessToken("twitch-user-access-token", auth.RoleViewer, auth.UserDetails{
+			Id:          "100",
+			Login:       "badman",
+			DisplayName: "Badman",
+		})
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Server{
-				q:                    tt.q,
-				authorizeCheerInflow: mockAuthorizeCheerInflow,
+				q: tt.q,
 			}
+			handler := auth.RequireAuthority(c, http.HandlerFunc(s.handlePostCheer))
 			req := httptest.NewRequest(http.MethodPost, "/inflow/cheer", strings.NewReader(tt.body))
 			if tt.authorization != "" {
-				req.Header.Add("authorization", tt.authorization)
+				req.Header.Add("authorization", fmt.Sprintf("Bearer %s", tt.authorization))
 			}
 			res := httptest.NewRecorder()
-			s.handlePostCheer(res, req)
+			handler.ServeHTTP(res, req)
 
 			b, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)
@@ -116,10 +119,6 @@ func Test_Server_handlePostCheer(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mockAuthorizeCheerInflow(s string) bool {
-	return s == "secret"
 }
 
 type mockQueries struct {

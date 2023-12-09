@@ -43,8 +43,6 @@ type Config struct {
 	DatabaseUser     string `env:"PGUSER" required:"true"`
 	DatabasePassword string `env:"PGPASSWORD" required:"true"`
 	DatabaseSslMode  string `env:"PGSSLMODE"`
-
-	LedgerShowtimeSecretKey string `env:"LEDGER_SHOWTIME_SECRET_KEY"`
 }
 
 func main() {
@@ -150,11 +148,10 @@ func main() {
 
 	// The showtime service can use POST /inflow/cheer to award bits in response to the
 	// Twitch channel.cheer webhook, which is called to signify the receipt of bits via
-	// Twitch. This route is authorized via a secret key that's known only to ledger and
-	// showtime, restricting access to internal use only and allowing us to identify the
-	// target user by ID, without supplying their user access token.
+	// Twitch. This route is authorized only when the request carries an authoritative
+	// JWT that was issued by the auth server to another internal service.
 	{
-		cheerServer := cheer.NewServer(q, config.LedgerShowtimeSecretKey)
+		cheerServer := cheer.NewServer(q)
 		cheerServer.RegisterRoutes(r, authClient)
 	}
 

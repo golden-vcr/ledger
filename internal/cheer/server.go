@@ -16,14 +16,12 @@ import (
 const MaxStoredMessageLen = 128
 
 type Server struct {
-	q                    Queries
-	authorizeCheerInflow AuthorizeCheerInflowFunc
+	q Queries
 }
 
-func NewServer(q Queries, secretKey string) *Server {
+func NewServer(q Queries) *Server {
 	return &Server{
-		q:                    q,
-		authorizeCheerInflow: makeAuthorizeCheerInflowFunc(secretKey),
+		q: q,
 	}
 }
 
@@ -36,11 +34,10 @@ func (s *Server) RegisterRoutes(r *mux.Router, c auth.Client) {
 }
 
 func (s *Server) handlePostCheer(res http.ResponseWriter, req *http.Request) {
-	// The caller (showtime) must supply the super secret magic value that's known only
-	// to it and the ledger service
-	if !s.authorizeCheerInflow(req.Header.Get("authorization")) {
-		http.Error(res, "access denied", http.StatusUnauthorized)
-		return
+	// Identify the user from the supplied JWT
+	claims, err := auth.GetClaims(req)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
 	// The request's Content-Type must indicate JSON if set
@@ -54,10 +51,6 @@ func (s *Server) handlePostCheer(res http.ResponseWriter, req *http.Request) {
 	var payload ledger.CheerRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		http.Error(res, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
-		return
-	}
-	if payload.TwitchUserId == "" {
-		http.Error(res, "invalid request payload: 'twitchUserId' is required", http.StatusBadRequest)
 		return
 	}
 	if payload.NumPointsToCredit <= 0 {
@@ -74,7 +67,7 @@ func (s *Server) handlePostCheer(res http.ResponseWriter, req *http.Request) {
 	// Create a finalized flow record representing the inflow transaction that credits
 	// our desired number of points to the target user
 	flowId, err := s.q.RecordCheerInflow(context.Background(), queries.RecordCheerInflowParams{
-		TwitchUserID:      payload.TwitchUserId,
+		TwitchUserID:      claims.User.Id,
 		NumPointsToCredit: int32(payload.NumPointsToCredit),
 		Message:           message,
 	})

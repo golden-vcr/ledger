@@ -43,7 +43,6 @@ type Transaction struct {
 }
 
 type CheerRequest struct {
-	TwitchUserId      string `json:"twitchUserId,omitempty"`
 	NumPointsToCredit int    `json:"numPointsToCredit"`
 	Message           string `json:"message"`
 }

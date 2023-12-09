@@ -41,7 +41,6 @@ type client struct {
 func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string, twitchUserId string, numPointsToCredit int, message string) (uuid.UUID, error) {
 	// Build a request payload for POST /inflow/cheer
 	payload := CheerRequest{
-		TwitchUserId:      twitchUserId,
 		NumPointsToCredit: numPointsToCredit,
 		Message:           message,
 	}
@@ -51,8 +50,8 @@ func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string,
 	}
 
 	// Prepare a request to POST /inflow/cheer that creates and finalizes an inflow that
-	// credits the requested number of points to the requested user, authorized with the
-	// provided JWT
+	// credits the requested number of points, authorized with the provided JWT (which
+	// also identifies the target user)
 	url := c.ledgerUrl + "/inflow/cheer"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
