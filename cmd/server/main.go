@@ -25,6 +25,7 @@ import (
 	"github.com/golden-vcr/ledger/internal/notifications"
 	"github.com/golden-vcr/ledger/internal/outflow"
 	"github.com/golden-vcr/ledger/internal/records"
+	"github.com/golden-vcr/ledger/internal/subscription"
 	"github.com/golden-vcr/server-common/db"
 )
 
@@ -153,6 +154,13 @@ func main() {
 	{
 		cheerServer := cheer.NewServer(q)
 		cheerServer.RegisterRoutes(r, authClient)
+	}
+
+	// POST /inflow/subscription and POST /inflow/gift-sub work similarly, responding to
+	// Twitch events by granting points as thanks for subscriptions
+	{
+		subscriptionServer := subscription.NewServer(q)
+		subscriptionServer.RegisterRoutes(r, authClient)
 	}
 
 	// Internal APIs can use POST /outflow to create pending transactions that deduct
