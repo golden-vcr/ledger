@@ -48,6 +48,54 @@ func formatTransactionDescription(flowType string, metadata json.RawMessage) str
 		}
 		return s
 	}
+	if flowType == string(ledger.TransactionTypeCheer) {
+		s := "Thank you for cheering"
+		var md cheerMetadata
+		if err := json.Unmarshal(metadata, &md); err == nil && md.Message != "" {
+			s += fmt.Sprintf(" with the message '%s'", md.Message)
+		}
+		s += "!"
+		return s
+	}
+	if flowType == string(ledger.TransactionTypeSubscription) {
+		var md subscriptionMetadata
+		if err := json.Unmarshal(metadata, &md); err != nil {
+			return "Thank you for being a subscriber!"
+		}
+		s := ""
+		if md.IsGift {
+			s = "You received a gift sub"
+		} else if md.IsInitial {
+			s = "Thank you for becoming a subscriber"
+		} else {
+			s = "Thank you for renewing your subscription"
+		}
+		if md.CreditMultiplier > 1.001 {
+			s += fmt.Sprintf(" (at a tier with %.fx credit)", md.CreditMultiplier)
+		}
+		if md.Message != "" {
+			s += fmt.Sprintf(" with the message '%s'", md.Message)
+		}
+		s += "!"
+		return s
+	}
+	if flowType == string(ledger.TransactionTypeGiftSub) {
+		var md giftSubMetadata
+		if err := json.Unmarshal(metadata, &md); err != nil {
+			return "Thank you for gifting subs!"
+		}
+		s := ""
+		if md.NumSubscriptions == 1 {
+			s = "Thank you for gifting a sub"
+		} else {
+			s = fmt.Sprintf("Thank you for gifting %d subs", md.NumSubscriptions)
+		}
+		if md.CreditMultiplier > 1.001 {
+			s += fmt.Sprintf(" (at a tier with %.fx credit)", md.CreditMultiplier)
+		}
+		s += "!"
+		return s
+	}
 	return ""
 }
 
@@ -57,4 +105,20 @@ type manualCreditMetadata struct {
 
 type alertRedemptionMetadata struct {
 	Type string `json:"type"`
+}
+
+type cheerMetadata struct {
+	Message string `json:"message"`
+}
+
+type subscriptionMetadata struct {
+	Message          string  `json:"message"`
+	IsInitial        bool    `json:"is_initial"`
+	IsGift           bool    `json:"is_gift"`
+	CreditMultiplier float64 `json:"credit_multiplier"`
+}
+
+type giftSubMetadata struct {
+	NumSubscriptions int     `json:"num_subscriptions"`
+	CreditMultiplier float64 `json:"credit_multiplier"`
 }

@@ -78,7 +78,7 @@ paths:
         auth mechanism to authorize the request, allowing the showtime service to grant
         an arbitrary number of points to an arbitrary user.
       security:
-        - twitchUserAccessToken: []
+        - authServiceIssuedJWT: []
       operationId: postCheer
       requestBody:
         required: true
@@ -90,7 +90,81 @@ paths:
       responses:
         '200':
           description: |-
-            Points were successfully credited to the desired user.
+            Points were successfully credited to the user identified by the JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResult'
+        '400':
+          description: |-
+            Request was invalid due to missing or malformed JSON payload in request
+            body.
+        '401':
+          description: |-
+            Authentication failed; request did not contain a valid, authoritative JWT
+            issued by the auth server.
+  /inflow/subscription:
+    post:
+      tags:
+        - inflow
+      summary: |-
+        Grants points to a user in response to a subscription or resub on Twitch
+      description: |-
+        This endpoint is used internally by the Twitch EventSub callback handler, in
+        response to an event representing the initial activation or renewal of a user's
+        subscription to the channel.
+      security:
+        - authServiceIssuedJWT: []
+      operationId: postSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '200':
+          description: |-
+            Points were successfully credited to the user identified by the JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResult'
+        '400':
+          description: |-
+            Request was invalid due to missing or malformed JSON payload in request
+            body.
+        '401':
+          description: |-
+            Authentication failed; request did not contain a valid, authoritative JWT
+            issued by the auth server.
+  /inflow/gift-sub:
+    post:
+      tags:
+        - inflow
+      summary: |-
+        Grants points to a user in response to a gifted subscription event on Twitch
+      description: |-
+        This endpoint is used internally by the Twitch EventSub callback handler, in
+        response to an event representing that a user has gifted channel subscriptions
+        to one or more other users. The resulting transaction is intended to reward the
+        gifter for their generation; above and beyond the ordinary credit given to
+        recipients of those subscriptions.
+      security:
+        - authServiceIssuedJWT: []
+      operationId: postGiftSub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/GiftSubRequest'
+      responses:
+        '200':
+          description: |-
+            Points were successfully credited to the user identified by the JWT.
           content:
             application/json:
               schema:
@@ -380,20 +454,56 @@ components:
           example: For good behavior
     CheerRequest:
       required:
-        - twitchUserId
         - numPointsToCredit
         - message
       type: object
       properties:
-        twitchUserId:
-          type: string
-          example: '90790024'
         numPointsToCredit:
           type: integer
           example: 200
         note:
           type: string
           example: ghost of a seal
+    SubscriptionRequest:
+      required:
+        - basePointsToCredit
+        - isInitial
+        - isGift
+        - message
+        - creditMultiplier
+      type: object
+      properties:
+        basePointsToCredit:
+          type: integer
+          example: 600
+        isInitial:
+          type: boolean
+          example: false
+        isGift:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: I have resubscribed at Tier 3, give me 3000 points
+        creditMultiplier:
+          type: number
+          example: 5
+    GiftSubRequest:
+      required:
+        - basePointsToCredit
+        - numSubscriptions
+        - creditMultiplier
+      type: object
+      properties:
+        basePointsToCredit:
+          type: integer
+          example: 400
+        numSubscriptions:
+          type: integer
+          example: 3
+        creditMultiplier:
+          type: number
+          example: 1
     OutflowAlertRedemption:
       required:
         - type
@@ -480,5 +590,8 @@ components:
           example: Redeemed alert of type 'generated-images'        
   securitySchemes:
     twitchUserAccessToken:
+      type: http
+      scheme: bearer
+    authServiceIssuedJWT:
       type: http
       scheme: bearer
