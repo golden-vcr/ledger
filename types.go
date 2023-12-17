@@ -65,7 +65,7 @@ type SubscriptionRequest struct {
 	Message string `json:"message"`
 	// CreditMulitplier is an additional scale factor applied based on the Tier of the
 	// subscription purchased; e.g. 2.0 for a Tier 2 sub, 5.0 for a Tier 3 sub
-	CreditMultiplier int `json:"creditMultiplier"`
+	CreditMultiplier float64 `json:"creditMultiplier"`
 }
 
 // GiftSubRequest is the payload sent with a POST /inflow/gift-sub request

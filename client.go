@@ -22,6 +22,8 @@ type TransactionContext interface {
 
 type Client interface {
 	RequestCreditFromCheer(ctx context.Context, accessToken string, numPointsToCredit int, message string) (uuid.UUID, error)
+	RequestCreditFromSubscription(ctx context.Context, accessToken string, basePointsToCredit int, isInitial bool, isGift bool, message string, creditMultiplier float64) (uuid.UUID, error)
+	RequestCreditFromGiftSub(ctx context.Context, accessToken string, basePointsToCredit int, numSubscriptions int, creditMultiplier float64) (uuid.UUID, error)
 	RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error)
 }
 
@@ -39,7 +41,7 @@ type client struct {
 }
 
 func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string, numPointsToCredit int, message string) (uuid.UUID, error) {
-	// Build a request payload for POST /inflow/cheer
+	// Make a request to POST /inflow/cheer
 	payload := CheerRequest{
 		NumPointsToCredit: numPointsToCredit,
 		Message:           message,
@@ -48,42 +50,37 @@ func (c *client) RequestCreditFromCheer(ctx context.Context, accessToken string,
 	if err != nil {
 		return uuid.UUID{}, err
 	}
+	return c.postInflow(ctx, accessToken, "/inflow/cheer", payloadBytes)
+}
 
-	// Prepare a request to POST /inflow/cheer that creates and finalizes an inflow that
-	// credits the requested number of points, authorized with the provided JWT (which
-	// also identifies the target user)
-	url := c.ledgerUrl + "/inflow/cheer"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+func (c *client) RequestCreditFromSubscription(ctx context.Context, accessToken string, basePointsToCredit int, isInitial bool, isGift bool, message string, creditMultiplier float64) (uuid.UUID, error) {
+	// Make a request to POST /inflow/subscription
+	payload := SubscriptionRequest{
+		BasePointsToCredit: basePointsToCredit,
+		IsInitial:          isInitial,
+		IsGift:             isGift,
+		Message:            message,
+		CreditMultiplier:   creditMultiplier,
+	}
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
+	return c.postInflow(ctx, accessToken, "/inflow/subscription", payloadBytes)
+}
 
-	// Initiate the request and make sure it completes successfully
-	res, err := c.Do(req)
+func (c *client) RequestCreditFromGiftSub(ctx context.Context, accessToken string, basePointsToCredit int, numSubscriptions int, creditMultiplier float64) (uuid.UUID, error) {
+	// Make a request to POST /inflow/gift-sub
+	payload := GiftSubRequest{
+		BasePointsToCredit: basePointsToCredit,
+		NumSubscriptions:   numSubscriptions,
+		CreditMultiplier:   creditMultiplier,
+	}
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-
-	// For any unexpected or non-OK response, propagate an error and halt
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
-		suffix := ""
-		if body, err := io.ReadAll(res.Body); err == nil {
-			suffix = fmt.Sprintf(": %s", body)
-		}
-		return uuid.UUID{}, fmt.Errorf("got response %d from POST %s%s", res.StatusCode, url, suffix)
-	}
-
-	// We have an OK response; parse the response body to get our transaction ID
-	contentType := res.Header.Get("content/type")
-	if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
-		return uuid.UUID{}, fmt.Errorf("got unexpected content-type '%s' from POST %s", contentType, url)
-	}
-	var result TransactionResult
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return uuid.UUID{}, fmt.Errorf("error decoding response body: %w", err)
-	}
-	return result.FlowId, nil
+	return c.postInflow(ctx, accessToken, "/inflow/gift-sub", payloadBytes)
 }
 
 func (c *client) RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (TransactionContext, error) {
@@ -141,6 +138,46 @@ func (c *client) RequestAlertRedemption(ctx context.Context, accessToken string,
 		accessToken: accessToken,
 		flowId:      result.FlowId,
 	}, nil
+}
+
+func (c *client) postInflow(ctx context.Context, accessToken string, relativeUrl string, payloadBytes []byte) (uuid.UUID, error) {
+	// Prepare a POST request to the desired URL that will create and finalize an inflow
+	// that credits an appropriate number of points to the user identified by the JWT,
+	// with the request authorized by virtue of the fact that the JWT was signed and
+	// authoritatively issued by the auth service
+	url := c.ledgerUrl + relativeUrl
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+	// Initiate the request and make sure it completes successfully
+	res, err := c.Do(req)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	// For any unexpected or non-OK response, propagate an error and halt
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		suffix := ""
+		if body, err := io.ReadAll(res.Body); err == nil {
+			suffix = fmt.Sprintf(": %s", body)
+		}
+		return uuid.UUID{}, fmt.Errorf("got response %d from POST %s%s", res.StatusCode, url, suffix)
+	}
+
+	// We have an OK response; parse the response body to get our transaction ID
+	contentType := res.Header.Get("content/type")
+	if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
+		return uuid.UUID{}, fmt.Errorf("got unexpected content-type '%s' from POST %s", contentType, url)
+	}
+	var result TransactionResult
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return uuid.UUID{}, fmt.Errorf("error decoding response body: %w", err)
+	}
+	return result.FlowId, nil
+
 }
 
 func (c *client) finalize(ctx context.Context, accessToken string, flowId uuid.UUID, accept bool) error {

@@ -43,6 +43,14 @@ func (c *Client) RequestCreditFromCheer(ctx context.Context, accessToken string,
 	return uuid.UUID{}, fmt.Errorf("not mocked")
 }
 
+func (c *Client) RequestCreditFromSubscription(ctx context.Context, accessToken string, basePointsToCredit int, isInitial bool, isGift bool, message string, creditMultiplier float64) (uuid.UUID, error) {
+	return uuid.UUID{}, fmt.Errorf("not mocked")
+}
+
+func (c *Client) RequestCreditFromGiftSub(ctx context.Context, accessToken string, basePointsToCredit int, numSubscriptions int, creditMultiplier float64) (uuid.UUID, error) {
+	return uuid.UUID{}, fmt.Errorf("not mocked")
+}
+
 func (c *Client) RequestAlertRedemption(ctx context.Context, accessToken string, numPointsToDebit int, alertType string, alertMetadata *json.RawMessage) (ledger.TransactionContext, error) {
 	balance, err := c.getAvailableBalance(accessToken)
 	if err != nil {

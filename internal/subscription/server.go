@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 
@@ -73,10 +74,10 @@ func (s *Server) handlePostSubscription(res http.ResponseWriter, req *http.Reque
 
 	// Create a finalized flow record representing the inflow transaction that credits
 	// our desired number of points to the target user
-	numPointsToCredit := payload.BasePointsToCredit * payload.CreditMultiplier
+	numPointsToCredit := int32(math.Round(float64(payload.BasePointsToCredit) * payload.CreditMultiplier))
 	flowId, err := s.q.RecordSubscriptionInflow(context.Background(), queries.RecordSubscriptionInflowParams{
 		TwitchUserID:      claims.User.Id,
-		NumPointsToCredit: int32(numPointsToCredit),
+		NumPointsToCredit: numPointsToCredit,
 		Message:           message,
 		IsInitial:         payload.IsInitial,
 		IsGift:            payload.IsGift,
