@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golden-vcr/server-common/entry"
 	"github.com/google/uuid"
 )
 
@@ -100,10 +101,11 @@ func (c *client) RequestAlertRedemption(ctx context.Context, accessToken string,
 	// requested parameters, then return a flow ID which we can later use to finalize
 	// the transaction
 	url := c.ledgerUrl + "/outflow"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, err
 	}
+	req = entry.ConveyRequestId(ctx, req)
 	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	// Initiate the request and make sure it completes successfully
@@ -146,10 +148,11 @@ func (c *client) postInflow(ctx context.Context, accessToken string, relativeUrl
 	// with the request authorized by virtue of the fact that the JWT was signed and
 	// authoritatively issued by the auth service
 	url := c.ledgerUrl + relativeUrl
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return uuid.UUID{}, err
 	}
+	req = entry.ConveyRequestId(ctx, req)
 	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	// Initiate the request and make sure it completes successfully
@@ -191,6 +194,7 @@ func (c *client) finalize(ctx context.Context, accessToken string, flowId uuid.U
 	if err != nil {
 		return err
 	}
+	req = entry.ConveyRequestId(ctx, req)
 	req.Header.Set("authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	// Initiate the request and make sure it completes successfully with a 204 status
