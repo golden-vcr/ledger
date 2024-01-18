@@ -1,22 +1,16 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/codingconcepts/env"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/golden-vcr/auth"
 	"github.com/golden-vcr/ledger/gen/queries"
@@ -27,6 +21,7 @@ import (
 	"github.com/golden-vcr/ledger/internal/records"
 	"github.com/golden-vcr/ledger/internal/subscription"
 	"github.com/golden-vcr/server-common/db"
+	"github.com/golden-vcr/server-common/entry"
 )
 
 type Config struct {
@@ -47,19 +42,18 @@ type Config struct {
 }
 
 func main() {
+	app := entry.NewApplication("ledger")
+	defer app.Stop()
+
 	// Parse config from environment variables
 	err := godotenv.Load()
 	if err != nil && !os.IsNotExist(err) {
-		log.Fatalf("error loading .env file: %v", err)
+		app.Fail("Failed to load .env file", err)
 	}
 	config := Config{}
 	if err := env.Set(&config); err != nil {
-		log.Fatalf("error loading config: %v", err)
+		app.Fail("Failed to load config", err)
 	}
-
-	// Shut down cleanly on signal
-	ctx, close := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
-	defer close()
 
 	// Configure our database connection and initialize a Queries struct, so we can read
 	// and write to the 'showtime' schema in response to HTTP requests, EventSub
@@ -74,11 +68,11 @@ func main() {
 	)
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		log.Fatalf("error opening database: %v", err)
+		app.Fail("Failed to open sql.DB", err)
 	}
 	defer db.Close()
 	if err := db.Ping(); err != nil {
-		log.Fatalf("error connecting to database: %v", err)
+		app.Fail("Failed to connect to database", err)
 	}
 	q := queries.New(db)
 
@@ -96,17 +90,17 @@ func main() {
 			fmt.Printf("pq listener connection attempt failed (err: %v)\n", err)
 		}
 		if err != nil {
-			log.Fatalf("pq.Listener failed: %v", err)
+			app.Fail("pq.Listener failed", err)
 		}
 	})
 	if err := pqListener.Listen("ledger_flow_change"); err != nil {
-		log.Fatalf("failed to issue LISTEN command for pq listener: %v", err)
+		app.Fail("Failed to issue LISTEN command for pq listener", err)
 	}
 	pqEvents := make(chan *notifications.FlowChangeNotification)
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-app.Context().Done():
 				return
 			case notification := <-pqListener.NotificationChannel():
 				var event notifications.FlowChangeNotification
@@ -121,9 +115,9 @@ func main() {
 
 	// Prepare an auth client that we can use to validate (and identify users from)
 	// Twitch user access tokens
-	authClient, err := auth.NewClient(ctx, config.AuthURL)
+	authClient, err := auth.NewClient(app.Context(), config.AuthURL)
 	if err != nil {
-		log.Fatalf("error initializing auth client: %v", err)
+		app.Fail("Failed to initialize auth client", err)
 	}
 
 	// Start setting up our HTTP handlers, using gorilla/mux for routing
@@ -135,8 +129,8 @@ func main() {
 		recordsServer := records.NewServer(q)
 		recordsServer.RegisterRoutes(authClient, r)
 
-		notificationsServer := notifications.NewServer(ctx, q, pqEvents)
-		go notificationsServer.ReadPostgresNotifications(ctx)
+		notificationsServer := notifications.NewServer(app.Context(), q, pqEvents)
+		go notificationsServer.ReadPostgresNotifications(app.Context())
 		notificationsServer.RegisterRoutes(authClient, r)
 	}
 
@@ -173,22 +167,5 @@ func main() {
 
 	// Handle incoming HTTP connections until our top-level context is canceled, at
 	// which point shut down cleanly
-	addr := fmt.Sprintf("%s:%d", config.BindAddr, config.ListenPort)
-	server := &http.Server{Addr: addr, Handler: r}
-	fmt.Printf("Listening on %s...\n", addr)
-	var wg errgroup.Group
-	wg.Go(server.ListenAndServe)
-
-	select {
-	case <-ctx.Done():
-		fmt.Printf("Received signal; closing server...\n")
-		server.Shutdown(context.Background())
-	}
-
-	err = wg.Wait()
-	if err == http.ErrServerClosed {
-		fmt.Printf("Server closed.\n")
-	} else {
-		log.Fatalf("error running server: %v", err)
-	}
+	entry.RunServer(app, r, config.BindAddr, int(config.ListenPort))
 }
