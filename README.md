@@ -17,8 +17,8 @@ On a Linux or WSL system:
    this one, and from the root of that repo:
     - Ensure that the module is initialized (via `terraform init`)
     - Ensure that valid terraform state is present
-    - Run `terraform output -raw env_ledger > ../ledger/.env` to populate an `.env`
-      file.
+    - Run `terraform output -raw env_ledger_local > ../ledger/.env` to populate an
+      `.env` file.
     - Run [`./local-db.sh up`](https://github.com/golden-vcr/terraform/blob/main/local-db.sh)
       to ensure that a Postgres server is running locally (requires
       [Docker](https://docs.docker.com/engine/install/)).
